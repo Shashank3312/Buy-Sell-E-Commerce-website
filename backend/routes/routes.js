@@ -229,6 +229,7 @@ router.post("/placeOrder", async (req, res) => {
 });
 
 
+
 router.post('/additem', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1];
@@ -253,5 +254,106 @@ router.post('/additem', async (req, res) => {
         res.status(500).json({ message: 'Internal server error', err });
     }
 });
+
+router.post('/pendingOrders', async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, 'secretkey');
+        const user = await Users.findOne({ email: decoded.email });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const orders = await Orders.find({ buyerID: user._id, status: 'Pending' });
+        res.status(200).json({ orders });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Internal server error', err });
+    }
+}); 
+
+router.post('/completedOrders', async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, 'secretkey');
+        const user = await Users.findOne({ email: decoded.email });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const orders = await Orders.find({ buyerID: user._id, status: 'Completed' });
+        res.status(200).json({ orders });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Internal server error', err });
+    }
+});
+
+router.post('/soldItems', async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, 'secretkey');
+        const user = await Users.findOne({ email: decoded.email });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const orders = await Orders.find({ sellerID: user._id, status: 'Completed' });
+        res.status(200).json({ orders });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Internal server error', err });
+    }
+});
+
+router.post('/pendingSoldItems', async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, 'secretkey');
+        const user = await Users.findOne({ email: decoded.email });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const orders = await Orders.find({ sellerID: user._id, status: 'Pending' });
+        res.status(200).json({ orders });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Internal server error', err });
+    }
+});
+
+router.post('/getFirstName', async (req, res) => {
+    try {
+        const { id } = req.body;
+        const user = await Users.findById(id);
+        if (user) {
+            res.status(200).json({ firstName: user.firstName });
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (err) {
+        res.status(500).json({ message: 'Internal server error', err });
+    }
+});
+
+router.post('/deliverOrder', async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, 'secretkey');
+        
+        const { orderId, otp } = req.body;
+        const order = await Orders.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+        const isMatch = await bcrypt.compare(otp.toString(), order.hashedOTP);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+        order.status = 'Completed';
+        await order.save();
+        res.status(200).json({ message: 'Order delivered successfully' });
+    } catch (err) {
+        res.status(500).json({ message: 'Internal server error', err });
+    }
+});
+
 
 module.exports = router;
